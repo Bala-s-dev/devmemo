@@ -1,0 +1,32 @@
+{
+  "name": "devmemo",
+  "version": "1.0.0",
+  "description": "Capture and retrieve developer decision memory",
+  "type": "module",
+  "bin": {
+    "devmemo": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "simple-git": "^3.25.0",
+    "commander": "^12.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.1",
+    "@inquirer/prompts": "^5.0.0",
+    "@inquirer/editor": "^3.0.0",
+    "nanoid": "^5.0.7",
+    "pino": "^9.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "tsup": "^8.1.0",
+    "vitest": "^1.6.0",
+    "@types/node": "^20.12.12",
+    "tsx": "^4.11.0"
+  }
+}
