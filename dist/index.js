@@ -62,15 +62,15 @@ var STORAGE_FILE = "memos.json";
 var JsonMemoRepository = class _JsonMemoRepository {
   memos = [];
   filePath;
-  constructor(storageDir) {
-    this.filePath = join(storageDir, STORAGE_FILE);
+  constructor(storageDir2) {
+    this.filePath = join(storageDir2, STORAGE_FILE);
   }
   /**
    * Creates a new JsonMemoRepository, loading data from disk.
    * @param storageDir - optional custom directory (used in tests)
    */
-  static async create(storageDir = DEFAULT_STORAGE_DIR) {
-    const repo2 = new _JsonMemoRepository(storageDir);
+  static async create(storageDir2 = DEFAULT_STORAGE_DIR) {
+    const repo2 = new _JsonMemoRepository(storageDir2);
     await repo2.load();
     return repo2;
   }
@@ -439,8 +439,15 @@ function registerDeleteCommand(program2, repo2) {
 // src/cli/index.ts
 var program = new Command();
 program.name("devmemo").description("Capture and retrieve developer decision memory").version("1.0.0");
-var repo = await JsonMemoRepository.create();
 var git = new GitAdapter();
+var storageDir;
+try {
+  const root = await git.repoRoot();
+  storageDir = `${root}/.devmemo`;
+} catch {
+  storageDir = void 0;
+}
+var repo = await JsonMemoRepository.create(storageDir);
 registerAddCommand(program, repo, git);
 registerExplainCommand(program, repo);
 registerSearchCommand(program, repo);
