@@ -45,10 +45,11 @@ export function registerListCommand(
           console.log(chalk.bold(`\n${target}`));
           for (const memo of targetMemos) {
             const date = new Date(memo.createdAt).toISOString().slice(0, 10);
-            const preview = memo.body.slice(0, 60).replace(/\n/g, ' ');
+            const snippet = memo.body.replace(/\n/g, ' ').slice(0, 60);
             console.log(
-              `  ${chalk.dim(memo.id)}  ${chalk.dim(date)}  ${preview}`,
+              `  ${chalk.dim(memo.id)}  ${chalk.dim(date)}  ${chalk.bold(memo.heading)}`,
             );
+            console.log(`    ${chalk.dim(snippet)}`);
           }
         }
       } catch (err: any) {

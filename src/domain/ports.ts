@@ -11,5 +11,6 @@ export interface MemoRepository {
 export interface GitPort {
   author(): Promise<string>;
   commitSHA(): Promise<string>;
+  commitMessage(): Promise<string>;
   repoRoot(): Promise<string>;
 }

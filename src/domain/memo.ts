@@ -1,11 +1,13 @@
 export interface Memo {
-  id: string; // nanoid(10)
-  target: string; // file path or symbol e.g. "src/auth/jwt.ts"
-  body: string; // the decision explanation
-  tags: string[]; // e.g. ["performance", "security"]
-  author: string; // from git config user.name
-  commitSHA: string; // current HEAD sha (short, 7 chars)
-  createdAt: string; // ISO 8601
+  id: string;
+  target: string;
+  heading: string;
+  body: string;
+  tags: string[];
+  author: string;
+  commitSHA: string; // short 7-char SHA
+  commitMessage: string; // full commit message
+  createdAt: string;
 }
 
 export class MemoNotFoundError extends Error {

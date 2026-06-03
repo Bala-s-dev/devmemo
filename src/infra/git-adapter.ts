@@ -15,13 +15,16 @@ export class GitAdapter implements GitPort {
     }
   }
 
-  async commitSHA(): Promise<string> {
+  async commitMessage(): Promise<string> {
     try {
-      const sha = await this.git.revparse(['--short', 'HEAD']);
-      return sha.trim() || 'no-commit';
+      const msg = await this.git.log({ maxCount: 1 });
+      if (msg.latest) {
+        return msg.latest.message.trim();
+      }
+      return 'no message';
     } catch {
-      logger.warn("Could not read git HEAD SHA, using 'no-commit'");
-      return 'no-commit';
+      logger.warn("Could not read git commit message, using 'no message'");
+      return 'no message';
     }
   }
 

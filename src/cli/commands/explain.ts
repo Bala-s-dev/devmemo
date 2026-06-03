@@ -36,19 +36,40 @@ export function registerExplainCommand(
           return;
         }
 
+        const termWidth = process.stdout.columns || 80;
+        const cardWidth = Math.min(termWidth, 80);  
+
         memos.forEach((memo: Memo) => {
           const date = new Date(memo.createdAt).toISOString().slice(0, 10);
-          console.log('┌' + '─'.repeat(40) + '┐');
-          console.log(
-            `│ ${chalk.bold(memo.target)}  •  ${memo.commitSHA}  •  ${date}`,
-          );
-          console.log(`│ Tags: ${memo.tags.join(', ')}`);
-          console.log('├' + '─'.repeat(40) + '┤');
-          const body =
-            memo.body.length > 36 ? memo.body.slice(0, 36) + '…' : memo.body;
-          console.log(`│ ${body.padEnd(36)} │`);
-          console.log('└' + '─'.repeat(40) + '┘');
+          const header = `${memo.target}  •  ${memo.commitSHA}  •  ${date}`;
+          const tagsLine = `Tags: ${memo.tags.join(', ')}`;
+
+          // Top border
+          console.log('┌' + '─'.repeat(cardWidth - 2) + '┐');
+          console.log(`│ ${chalk.bold(header.padEnd(cardWidth - 4))} │`);
+          console.log(`│ ${tagsLine.padEnd(cardWidth - 4)} │`);
+          console.log('├' + '─'.repeat(cardWidth - 2) + '┤');
+
+          // Body: split into lines that fit inside the card (leave 2 chars for borders + space)
+          const maxLineLength = cardWidth - 4;
+          const bodyLines = memo.body.split('\n');
+          for (const line of bodyLines) {
+            // Word-wrap each line manually
+            let remaining = line;
+            while (remaining.length > maxLineLength) {
+              const chunk = remaining.slice(0, maxLineLength);
+              remaining = remaining.slice(maxLineLength);
+              console.log(`│ ${chunk.padEnd(maxLineLength)} │`);
+            }
+            if (remaining.length > 0) {
+              console.log(`│ ${remaining.padEnd(maxLineLength)} │`);
+            }
+          }
+
+          // Bottom border
+          console.log('└' + '─'.repeat(cardWidth - 2) + '┘');
         });
+
       } catch (err: any) {
         logger.error(err, 'Explain command failed');
         console.error(chalk.red(`Error: ${err.message}`));

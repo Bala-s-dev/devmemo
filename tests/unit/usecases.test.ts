@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { Memo, MemoNotFoundError } from '../../src/domain/memo.js';
+import type { Memo } from '../../src/domain/memo.js';
 import type { MemoRepository, GitPort } from '../../src/domain/ports.js';
 import { AddMemoUseCase } from '../../src/usecases/add-memo.js';
 import { ExplainTargetUseCase } from '../../src/usecases/explain-target.js';
@@ -9,7 +9,6 @@ import { DeleteMemoUseCase } from '../../src/usecases/delete-memo.js';
 
 // ---- Mocks ----
 
-// A simple in-memory MemoRepository
 class InMemoryMemoRepo implements MemoRepository {
   private memos: Map<string, Memo> = new Map();
 
@@ -28,8 +27,6 @@ class InMemoryMemoRepo implements MemoRepository {
         `${m.body} ${m.tags.join(' ')} ${m.target}`.toLowerCase();
       return haystack.includes(lower);
     });
-    // simple scoring: length of query match (just for demonstration, real one in infra)
-    // For test, just return all matches sorted by createdAt desc.
     results.sort(
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -48,7 +45,6 @@ class InMemoryMemoRepo implements MemoRepository {
 
   async delete(id: string): Promise<void> {
     if (!this.memos.has(id)) {
-      // throw the domain error
       const { MemoNotFoundError } = await import('../../src/domain/memo.js');
       throw new MemoNotFoundError(id);
     }
@@ -56,7 +52,6 @@ class InMemoryMemoRepo implements MemoRepository {
   }
 }
 
-// A stub GitPort with fixed values
 const stubGit: GitPort = {
   author: async () => 'test author',
   commitSHA: async () => 'abc1234',
@@ -75,6 +70,7 @@ describe('Use Cases', () => {
       const useCase = new AddMemoUseCase(repo, stubGit);
       const input = {
         target: 'src/auth.ts',
+        heading: 'Add JWT auth',
         body: 'Added JWT',
         tags: ['security'],
       };
@@ -83,6 +79,7 @@ describe('Use Cases', () => {
 
       expect(memo.id).toHaveLength(10);
       expect(memo.target).toBe('src/auth.ts');
+      expect(memo.heading).toBe('Add JWT auth');
       expect(memo.body).toBe('Added JWT');
       expect(memo.tags).toEqual(['security']);
       expect(memo.author).toBe('test author');
@@ -90,7 +87,7 @@ describe('Use Cases', () => {
       expect(new Date(memo.createdAt).getTime()).toBeLessThanOrEqual(
         Date.now(),
       );
-      // Verify it was saved
+
       const saved = await repo.findByTarget('src/auth.ts');
       expect(saved).toHaveLength(1);
       expect(saved[0].id).toBe(memo.id);
@@ -103,6 +100,7 @@ describe('Use Cases', () => {
         {
           id: '1',
           target: 'f.ts',
+          heading: 'Old decision',
           body: 'old',
           tags: [],
           author: 'x',
@@ -112,6 +110,7 @@ describe('Use Cases', () => {
         {
           id: '2',
           target: 'f.ts',
+          heading: 'New decision',
           body: 'new',
           tags: [],
           author: 'x',
@@ -142,6 +141,7 @@ describe('Use Cases', () => {
       const memo1: Memo = {
         id: '1',
         target: 'x.ts',
+        heading: 'Cache layer',
         body: 'redis cache',
         tags: ['performance'],
         author: 'a',
@@ -151,6 +151,7 @@ describe('Use Cases', () => {
       const memo2: Memo = {
         id: '2',
         target: 'y.ts',
+        heading: 'DB tuning',
         body: 'db tuning',
         tags: [],
         author: 'a',
@@ -171,6 +172,7 @@ describe('Use Cases', () => {
         await repo.save({
           id: String(i),
           target: 'a',
+          heading: 'Match ' + i,
           body: 'match',
           tags: [],
           author: 'a',
@@ -189,6 +191,7 @@ describe('Use Cases', () => {
       const oldMemo: Memo = {
         id: 'old',
         target: 'a',
+        heading: 'Old',
         body: 'old',
         tags: [],
         author: 'a',
@@ -198,6 +201,7 @@ describe('Use Cases', () => {
       const newMemo: Memo = {
         id: 'new',
         target: 'b',
+        heading: 'New',
         body: 'new',
         tags: [],
         author: 'a',
@@ -220,6 +224,7 @@ describe('Use Cases', () => {
       const memo: Memo = {
         id: 'del',
         target: 't',
+        heading: 'Delete me',
         body: 'b',
         tags: [],
         author: 'a',

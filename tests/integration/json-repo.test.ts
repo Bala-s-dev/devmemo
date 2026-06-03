@@ -10,15 +10,16 @@ describe('JsonMemoRepository', () => {
   let repo: JsonMemoRepository;
   let testDir: string;
 
-  // Helper to create a memo
   const makeMemo = (
     id: string,
     target: string,
+    heading: string,
     body: string,
     tags: string[] = [],
   ): Memo => ({
     id,
     target,
+    heading,
     body,
     tags,
     author: 'test',
@@ -27,7 +28,6 @@ describe('JsonMemoRepository', () => {
   });
 
   beforeEach(async () => {
-    // Create a unique temp directory
     testDir = mkdtempSync(join(tmpdir(), 'devmemo-test-'));
     repo = await JsonMemoRepository.create(testDir);
   });
@@ -37,7 +37,7 @@ describe('JsonMemoRepository', () => {
   });
 
   it('should save and retrieve memos by target', async () => {
-    const memo = makeMemo('1', 'src/app.ts', 'added app');
+    const memo = makeMemo('1', 'src/app.ts', 'App setup', 'added app');
     await repo.save(memo);
 
     const found = await repo.findByTarget('src/app.ts');
@@ -47,9 +47,13 @@ describe('JsonMemoRepository', () => {
 
   it('should search memos case-insensitively', async () => {
     await repo.save(
-      makeMemo('1', 'f1.ts', 'Redis cache layer', ['performance']),
+      makeMemo('1', 'f1.ts', 'Redis cache', 'Redis cache layer', [
+        'performance',
+      ]),
     );
-    await repo.save(makeMemo('2', 'f2.ts', 'database tuning', ['db']));
+    await repo.save(
+      makeMemo('2', 'f2.ts', 'DB tuning', 'database tuning', ['db']),
+    );
 
     const results = await repo.search('redis', 10);
     expect(results).toHaveLength(1);
@@ -57,23 +61,21 @@ describe('JsonMemoRepository', () => {
   });
 
   it('should return memos sorted by score then date', async () => {
-    // two memos that both match, one with more occurrences
     await repo.save({
-      ...makeMemo('high', 'a.ts', 'redis redis cache'),
+      ...makeMemo('high', 'a.ts', 'High score', 'redis redis cache'),
       createdAt: '2024-01-01T00:00:00.000Z',
     });
     await repo.save({
-      ...makeMemo('low', 'b.ts', 'redis cache'),
-      createdAt: '2024-06-01T00:00:00.000Z', // newer
+      ...makeMemo('low', 'b.ts', 'Low score', 'redis cache'),
+      createdAt: '2024-06-01T00:00:00.000Z',
     });
 
     const results = await repo.search('redis', 10);
-    // "high" has 2 matches, "low" has 1
     expect(results.map((m) => m.id)).toEqual(['high', 'low']);
   });
 
   it('should delete a memo and throw for missing id', async () => {
-    await repo.save(makeMemo('del', 't.ts', 'something'));
+    await repo.save(makeMemo('del', 't.ts', 'Delete me', 'something'));
     await repo.delete('del');
     const all = await repo.listAll();
     expect(all).toHaveLength(0);
@@ -82,8 +84,7 @@ describe('JsonMemoRepository', () => {
   });
 
   it('should persist data across reloads', async () => {
-    await repo.save(makeMemo('1', 'x.ts', 'hello'));
-    // create a brand new repo pointing to the same dir (simulate restart)
+    await repo.save(makeMemo('1', 'x.ts', 'Persist', 'hello'));
     const repo2 = await JsonMemoRepository.create(testDir);
     const memos = await repo2.listAll();
     expect(memos).toHaveLength(1);
@@ -91,9 +92,8 @@ describe('JsonMemoRepository', () => {
   });
 
   it('should handle atomic write (no corruption)', async () => {
-    // save a bunch of memos, then reload – just a sanity check
     for (let i = 0; i < 10; i++) {
-      await repo.save(makeMemo(String(i), 'f.ts', 'data'));
+      await repo.save(makeMemo(String(i), 'f.ts', 'Title ' + i, 'data'));
     }
     const repo2 = await JsonMemoRepository.create(testDir);
     const all = await repo2.listAll();
