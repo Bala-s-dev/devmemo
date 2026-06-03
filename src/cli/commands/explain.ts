@@ -2,7 +2,6 @@ import ora from 'ora';
 import chalk from 'chalk';
 import type { Memo } from '../../domain/memo.js';
 import type { MemoRepository } from '../../domain/ports.js';
-import { ExplainTargetUseCase } from '../../usecases/explain-target.js';
 import { logger } from '../../logger.js';
 
 export function registerExplainCommand(
@@ -10,16 +9,48 @@ export function registerExplainCommand(
   repo: MemoRepository,
 ) {
   program
-    .command('explain <target>')
-    .description('Show all memos for a target')
+    .command('explain <query>')
+    .description(
+      'Show full details of memos matching query (id, heading, commit SHA, or target)',
+    )
     .option('--json', 'Output raw JSON')
-    .action(async (target: string, options: { json?: boolean }) => {
+    .action(async (query: string, options: { json?: boolean }) => {
       const jsonMode = options.json ?? false;
 
       try {
-        const spinner = jsonMode ? null : ora('Fetching memos…').start();
-        const useCase = new ExplainTargetUseCase(repo);
-        const memos = await useCase.execute({ target });
+        const spinner = jsonMode ? null : ora('Fetching memo details…').start();
+
+        // 1. Try exact ID match
+        let memos: Memo[] = [];
+        const all = await repo.listAll();
+
+        // Exact ID match first
+        const byId = all.find((m) => m.id === query);
+        if (byId) {
+          memos = [byId];
+        } else {
+          // Search by commitSHA (exact), heading (contains), target (contains)
+          const lower = query.toLowerCase();
+          memos = all.filter(
+            (m) =>
+              m.commitSHA === query ||
+              m.heading.toLowerCase().includes(lower) ||
+              m.target.toLowerCase().includes(lower),
+          );
+          // If many, sort by relevance: heading match > target match, then by date
+          memos.sort((a, b) => {
+            const aHeading = a.heading.toLowerCase().includes(lower) ? 0 : 1;
+            const bHeading = b.heading.toLowerCase().includes(lower) ? 0 : 1;
+            if (aHeading !== bHeading) return aHeading - bHeading;
+            const aTarget = a.target.toLowerCase().includes(lower) ? 0 : 1;
+            const bTarget = b.target.toLowerCase().includes(lower) ? 0 : 1;
+            if (aTarget !== bTarget) return aTarget - bTarget;
+            return (
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+          });
+        }
+
         spinner?.stop();
 
         if (jsonMode) {
@@ -28,48 +59,51 @@ export function registerExplainCommand(
         }
 
         if (memos.length === 0) {
-          console.log(
-            chalk.yellow(
-              `No memos for '${target}'. Add one with: devmemo add ${target}`,
-            ),
-          );
+          console.log(chalk.yellow(`No memos found for query '${query}'.`));
           return;
         }
 
         const termWidth = process.stdout.columns || 80;
-        const cardWidth = Math.min(termWidth, 80);  
+        const cardWidth = Math.min(termWidth, 80);
 
-        memos.forEach((memo: Memo) => {
+        memos.forEach((memo) => {
           const date = new Date(memo.createdAt).toISOString().slice(0, 10);
           const header = `${memo.target}  •  ${memo.commitSHA}  •  ${date}`;
-          const tagsLine = `Tags: ${memo.tags.join(', ')}`;
+          const tagsLine = `Tags: ${memo.tags.join(', ') || 'none'}`;
+          const headingLine = `# ${memo.heading}`;
 
-          // Top border
           console.log('┌' + '─'.repeat(cardWidth - 2) + '┐');
           console.log(`│ ${chalk.bold(header.padEnd(cardWidth - 4))} │`);
+          console.log(`│ ${headingLine.padEnd(cardWidth - 4)} │`);
           console.log(`│ ${tagsLine.padEnd(cardWidth - 4)} │`);
+          if (memo.commitMessage) {
+            const commitMsgLine =
+              'Commit: ' +
+              memo.commitMessage.split('\n')[0].slice(0, cardWidth - 10);
+            console.log(
+              `│ ${chalk.dim(commitMsgLine.padEnd(cardWidth - 4))} │`,
+            );
+          }
           console.log('├' + '─'.repeat(cardWidth - 2) + '┤');
 
-          // Body: split into lines that fit inside the card (leave 2 chars for borders + space)
-          const maxLineLength = cardWidth - 4;
+          // Body (word wrap)
+          const maxLineLen = cardWidth - 4;
           const bodyLines = memo.body.split('\n');
           for (const line of bodyLines) {
-            // Word-wrap each line manually
             let remaining = line;
-            while (remaining.length > maxLineLength) {
-              const chunk = remaining.slice(0, maxLineLength);
-              remaining = remaining.slice(maxLineLength);
-              console.log(`│ ${chunk.padEnd(maxLineLength)} │`);
+            while (remaining.length > maxLineLen) {
+              console.log(
+                `│ ${remaining.slice(0, maxLineLen).padEnd(maxLineLen)} │`,
+              );
+              remaining = remaining.slice(maxLineLen);
             }
             if (remaining.length > 0) {
-              console.log(`│ ${remaining.padEnd(maxLineLength)} │`);
+              console.log(`│ ${remaining.padEnd(maxLineLen)} │`);
             }
           }
 
-          // Bottom border
-          console.log('└' + '─'.repeat(cardWidth - 2) + '┘');
+          console.log('└' + '─'.repeat(cardWidth - 2) + '┘\n');
         });
-
       } catch (err: any) {
         logger.error(err, 'Explain command failed');
         console.error(chalk.red(`Error: ${err.message}`));

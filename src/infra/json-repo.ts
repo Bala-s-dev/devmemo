@@ -32,7 +32,18 @@ export class JsonMemoRepository implements MemoRepository {
   private async load(): Promise<void> {
     try {
       const raw = await readFile(this.filePath, 'utf-8');
-      this.memos = JSON.parse(raw) as Memo[];
+
+      this.memos = JSON.parse(raw).map((m: any) => {
+        if (!m.heading) {
+          const firstLine = (m.body || '').split('\n')[0].trim();
+          m.heading = firstLine ? firstLine.slice(0, 60) : 'Untitled';
+        }
+        if (typeof m.commitMessage !== 'string') {
+          m.commitMessage = ''; 
+        }
+        return m as Memo;
+      });;
+
     } catch (err: any) {
       if (err.code === 'ENOENT') {
         // file not found → start fresh

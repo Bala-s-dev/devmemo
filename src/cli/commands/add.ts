@@ -5,6 +5,42 @@ import type { MemoRepository, GitPort } from '../../domain/ports.js';
 import { AddMemoUseCase } from '../../usecases/add-memo.js';
 import { logger } from '../../logger.js';
 
+const STARTER_TEMPLATE = `# Feature Name
+
+## Summary
+What does it do?
+
+## Technical Overview
+How does it work?
+
+## Components
+Important files/services involved.
+
+## API/Function Details
+Inputs, outputs, examples.
+
+## Flow
+Step-by-step execution.
+
+## Edge Cases
+Special handling.
+
+## Dependencies
+External/internal dependencies.
+
+## Security Notes
+Authentication, authorization, validation.
+
+## Limitations
+Known constraints.
+
+## Testing
+How it was verified.
+
+## Future Improvements
+Possible enhancements.
+`;
+
 export function registerAddCommand(
   program: import('commander').Command,
   repo: MemoRepository,
@@ -58,6 +94,7 @@ export function registerAddCommand(
               message:
                 'Describe the decision, context, and optionally an example.\n' +
                 '  (Save and close editor to continue)',
+              default: STARTER_TEMPLATE,
             });
           }
 

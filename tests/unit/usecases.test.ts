@@ -55,6 +55,7 @@ class InMemoryMemoRepo implements MemoRepository {
 const stubGit: GitPort = {
   author: async () => 'test author',
   commitSHA: async () => 'abc1234',
+  commitMessage: async () => 'Initial commit',
   repoRoot: async () => '/fake/repo',
 };
 
